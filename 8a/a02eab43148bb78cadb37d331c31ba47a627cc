@@ -1,0 +1,16 @@
+SummarizationLLM.md
+  h_df99cb596cd5e6 1
+SummarizationLLM.py
+  h_df99cb596cd5e6 1-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "8aa02eab43148bb78cadb37d331c31ba47a627cc",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
