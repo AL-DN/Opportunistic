@@ -4,7 +4,7 @@ The goal of this project is to build not only a `private, efficent way of organi
 
 ### Call Stack
 
-1. git commit is recognized
+1. Git push hook for git commits ~ then we know the commits are official and not rewinded (etc)
 2. prompt llm:
     You are a helpful assisant tasked to extract important values from this code including,
     a project_id (parent folder name), libraries, data structures and algorithms utilized. Along with big O space and time complexity along with a result 
