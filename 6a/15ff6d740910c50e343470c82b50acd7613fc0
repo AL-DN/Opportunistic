@@ -1,0 +1,18 @@
+src/data_entry/summarize_project.py
+  h_df99cb596cd5e6 1-67
+src/data_entry/summarize_commit.py
+  h_df99cb596cd5e6 15-16,57-59,61
+src/data_entry/SummarizationLLM.py
+  h_df99cb596cd5e6 13,20-44,52,57-60,63-67,70,84,95,102-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6a15ff6d740910c50e343470c82b50acd7613fc0",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
