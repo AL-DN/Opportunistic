@@ -1,8 +1,7 @@
 # Author: Alden Sahi
 # Date: 07/29/2026
-# Program Name: SummarizationLLM
-#! Project Description: Builds a class that allows for LLM initalization, and
-    # summary generation given a git commit
+# Program Name: Document Generator
+# Project Description: Generates Custom Resume and Cover Letters 
 
 import requests
 import json
@@ -19,7 +18,7 @@ class OutputFormat(BaseModel):
     result: str = Field(description="Explanation of how this improved the existing solution, or the outcome if newly written")
 
 
-class SummarizationLLM:
+class Document Generator:
 
     # Constructor Definition
     def __init__(self, name: str):
@@ -35,13 +34,21 @@ class SummarizationLLM:
 
 
     def print_output_format(self)->Dict[str, Union[str, list[str]]]:
-        """Returns output criteria for the SummarizationLLM"""
+        """Returns output criteria for the Document Generator"""
         schema_dict = self.output_format.model_json_schema()
         print(json.dumps(schema_dict, indent=2))
         return schema_dict
 
 
     def summarize(self, prompt: str)-> OutputFormat:
+        """_summary_
+
+        Args:
+            prompt (str): Retrived context from SUMMARY_LOG.jsonl
+
+        Returns:
+            OutputFormat: _description_
+        """
         data: dict[str, Any] = {
             "model": f"{self.name}",
             "messages": [
@@ -69,5 +76,5 @@ class SummarizationLLM:
 
 
 if __name__ == "__main__":
-    agent = SummarizationLLM("ai/qwen3.5:9B-UD-Q4_K_XL")
+    agent = Document Generator("ai/qwen3.5:9B-UD-Q4_K_XL")
     agent.print_output_format()

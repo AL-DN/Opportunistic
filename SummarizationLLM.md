@@ -1,1 +1,0 @@
-1. For model initalization I want to use Docker model runner for consistency accross devices

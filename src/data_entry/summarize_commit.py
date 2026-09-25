@@ -13,7 +13,7 @@ from pathlib import Path
 from SummarizationLLM import SummarizationLLM
 
 REPO_ROOT = Path(__file__).resolve().parent
-LOG_PATH = REPO_ROOT / "SUMMARY_LOG.jsonl"
+LOG_PATH = REPO_ROOT / "src" / "data_store" / "SUMMARY_LOG.jsonl"
 MODEL_NAME = "gemma4"
 
 
@@ -26,6 +26,23 @@ def get_commit_diff(commit_sha: str) -> str:
         check=True,                                             # raises subprocess.CalledProcessError if git exits nonzero
     )
     return result.stdout
+
+def get_paths():
+    """
+        diff-tree plumbing command (meant for scripts) compares two tree obkects
+        --no-commit-id suppress commit-id in output (we already know ID)
+        --name-only only outputs file paths (w/o it -> raw mode lines)
+        -r recurses into subdirectories. Without it, a change to src/auth/tokens.py shows up only as src changed, which is useless for your prefix signature.
+        -M enables detection of renamed files.
+        --name-status prefixes each path with a status letter: A added, M modified, D deleted, R renamed (with a similarity score, like R087), C copied, T type change. For renames it prints both old and new paths
+        --numstat gives added<TAB>removed<TAB>path per file. Binary files show - for both counts. Handy as a weight
+        
+        
+        
+        <sha> is the commit hash
+        
+    
+    """
 
 
 def main() -> int:
