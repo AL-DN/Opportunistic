@@ -12,8 +12,8 @@ from pathlib import Path
 
 from SummarizationLLM import SummarizationLLM
 
-REPO_ROOT = Path(__file__).resolve().parent
-LOG_PATH = REPO_ROOT / "src" / "data_store" / "SUMMARY_LOG.jsonl"
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+LOG_PATH = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
 MODEL_NAME = "gemma4"
 
 
@@ -54,9 +54,11 @@ def main() -> int:
     diff = get_commit_diff(commit_sha)
 
     agent = SummarizationLLM(MODEL_NAME)
-    output = agent.summarize(diff)
+    output = agent.summarize_commit(diff)
+    output_as_dict = output.model_dump()
+    output_as_dict["project_id"] = REPO_ROOT.name
 
-    record = {"commit": commit_sha, **output.model_dump()}
+    record = {"commit": commit_sha, **output_as_dict}   # unpacks all kv pairs inside new dictionary
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
