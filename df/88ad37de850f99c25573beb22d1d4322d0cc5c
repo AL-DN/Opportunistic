@@ -1,0 +1,20 @@
+src/data_entry/SummarizationLLM.py
+  h_df99cb596cd5e6 94-101,135-142
+src/data_entry/summarize_project.py
+  h_df99cb596cd5e6 36-66,87,89,91-92,94
+src/data_entry/summarize_commit.py
+  h_df99cb596cd5e6 16,50,54,58,60-62,65
+src/data_entry/build_project_embeddings.py
+  h_df99cb596cd5e6 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "df88ad37de850f99c25573beb22d1d4322d0cc5c",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
