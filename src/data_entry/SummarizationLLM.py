@@ -60,13 +60,6 @@ class SummarizationLLM:
         """
 
 
-    # def print_output_format(self)->Dict[str, Union[str, list[str]]]:
-    #     """Returns output criteria for the SummarizationLLM"""
-    #     schema_dict = self.output_format.model_json_schema()
-    #     print(json.dumps(schema_dict, indent=2))
-    #     return schema_dict
-
-
     def summarize_commit(self, prompt: str)-> CommitSummarizationOutputFormat:
         """_summary_
 
@@ -98,7 +91,14 @@ class SummarizationLLM:
         }
         response = requests.post(f"{self.api}", json=data)
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
+        
+        body = response.json()
+        choice = body["choices"][0]
+        if choice["finish_reason"] == "length":
+            raise RuntimeError(
+                f"Output truncated at token limit (usage: {body.get('usage')})"
+            )
+        content = choice["message"]["content"]        
         return CommitSummarizationOutputFormat.model_validate_json(content)
 
     def summarize_project(self, prompt: str)-> ProjectProfileOutputFormat:
@@ -132,7 +132,14 @@ class SummarizationLLM:
             }
             response = requests.post(f"{self.api}", json=data)
             response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"]
+            body = response.json()
+            choice = body["choices"][0]
+            if choice["finish_reason"] == "length":
+                raise RuntimeError(
+                    f"Output truncated at token limit (usage: {body.get('usage')})"
+                )
+                        
+            content = choice["message"]["content"]
             return ProjectProfileOutputFormat.model_validate_json(content)
 
 
@@ -140,4 +147,3 @@ class SummarizationLLM:
 
 if __name__ == "__main__":
     agent = SummarizationLLM("ai/qwen3.5:9B-UD-Q4_K_XL")
-    agent.print_output_format()

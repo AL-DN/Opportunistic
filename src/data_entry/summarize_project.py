@@ -33,6 +33,37 @@ def get_commit_summaries(project_id: str) -> list[dict[str, Any]]:
     
     return project_summaries
 
+def initialize_project_log(project_id: str) -> dict[str, str]:
+    """On new project summary, attach to work experience if possible for ease of resume building
+
+    Returns:
+        dict[str, str]: inital project log dictionary
+    """
+    project_log = {}
+    print("Project Type:")
+    print("1. Project")
+    print("2. Work Experience")
+    while True:
+        project_type = input("Enter project type (1 or 2):")
+        match project_type:
+            case "1":
+                # handle project type
+                project_log["project_id"] = project_id
+                project_log["type"] = "project"
+                break
+            case "2":
+                # handle work experience type
+                project_log["project_id"] = project_id
+                project_log["type"] = "work_experience"
+                project_log["title"] = input("Enter title: ")
+                project_log["start_date"] = input("Enter start date(MM-DD-YYYY): ")
+                project_log["end_date"] = "Present"
+                break
+            case _:
+                print("Invalid project type")
+    return project_log
+                        
+        
     
 def main() -> int:
     if len(sys.argv) != 2:
@@ -52,14 +83,15 @@ def main() -> int:
     agent = SummarizationLLM(MODEL_NAME)
     output = agent.summarize_project(json.dumps(commit_summaries, indent=2))
     output_as_dict = output.model_dump()
-    record = {"project_id": project_id, **output_as_dict}   # unpacks all kv pairs inside new dictionary
     
-    # Loads all project summarize, update, and save new log
+    # Loads all project summaries, update, and save new log
     profiles = json.loads(PROJECT_LOG.read_text(encoding="utf-8")) if PROJECT_LOG.exists() else {}
-    profiles[project_id] = output.model_dump()
+    existing = profiles.get(project_id) or initialize_project_log(project_id)
+
+    # Final record: keep user-entered metadata, overwrite old LLM fields with the new summary
+    profiles[project_id] = {**existing, **output.model_dump()}
+
     PROJECT_LOG.write_text(json.dumps(profiles, indent=4), encoding="utf-8")
-
-
     print(f"Summarized {len(commit_summaries)} commits-> {project_id}")
     return 0
 

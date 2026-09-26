@@ -13,7 +13,7 @@ from pathlib import Path
 from SummarizationLLM import SummarizationLLM
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-LOG_PATH = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
+COMMIT_LOG_PATH = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
 MODEL_NAME = "gemma4"
 
 
@@ -36,9 +36,6 @@ def get_paths():
         -M enables detection of renamed files.
         --name-status prefixes each path with a status letter: A added, M modified, D deleted, R renamed (with a similarity score, like R087), C copied, T type change. For renames it prints both old and new paths
         --numstat gives added<TAB>removed<TAB>path per file. Binary files show - for both counts. Handy as a weight
-        
-        
-        
         <sha> is the commit hash
         
     
@@ -50,19 +47,22 @@ def main() -> int:
         print("usage: summarize_commit.py <commit_sha>", file=sys.stderr)
         return 2
 
+    # Gets new changes in commit
     commit_sha = sys.argv[1]
     diff = get_commit_diff(commit_sha)
 
+    # structured summary of code changes
     agent = SummarizationLLM(MODEL_NAME)
     output = agent.summarize_commit(diff)
     output_as_dict = output.model_dump()
-    output_as_dict["project_id"] = REPO_ROOT.name
-
+    output_as_dict["project_id"] = REPO_ROOT.name   # attaches project directory name where commit was ran
     record = {"commit": commit_sha, **output_as_dict}   # unpacks all kv pairs inside new dictionary
-    with LOG_PATH.open("a", encoding="utf-8") as f:
+    
+    # Appends the new commit summary to the commit log file
+    with COMMIT_LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
-    print(f"Summarized {commit_sha[:8]} -> {LOG_PATH.name}")
+    print(f"Summarized {commit_sha[:8]} -> {COMMIT_LOG_PATH.name}")
     return 0
 
 
