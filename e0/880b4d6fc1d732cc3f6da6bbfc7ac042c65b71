@@ -1,0 +1,16 @@
+src/data_entry/main.py
+  h_df99cb596cd5e6 1-44
+src/data_entry/summarize_project.py
+  h_df99cb596cd5e6 37-46,48,59-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e0880b4d6fc1d732cc3f6da6bbfc7ac042c65b71",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
