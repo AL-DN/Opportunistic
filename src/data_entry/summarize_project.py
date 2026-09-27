@@ -63,7 +63,6 @@ def initialize_project_log(project_id: str) -> dict[str, str]:
                 print("Invalid project type")
     return project_log
                         
-        
     
 def main() -> int:
     if len(sys.argv) != 2:

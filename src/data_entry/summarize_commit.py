@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from SummarizationLLM import SummarizationLLM
+from utils import write_jsonl, check_for_duplicate
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 COMMIT_LOG_PATH = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
@@ -51,18 +52,21 @@ def main() -> int:
     commit_sha = sys.argv[1]
     diff = get_commit_diff(commit_sha)
 
-    # structured summary of code changes
+    # Exits if commit is already in the log
+    test_dict = {"project_id": REPO_ROOT.name, "commit": commit_sha}
+    if check_for_duplicate("CommitSummaries", test_dict):
+        return 1
+    
+    # Summarizes diffs
     agent = SummarizationLLM(MODEL_NAME)
     output = agent.summarize_commit(diff)
     output_as_dict = output.model_dump()
-    output_as_dict["project_id"] = REPO_ROOT.name   # attaches project directory name where commit was ran
-    record = {"commit": commit_sha, **output_as_dict}   # unpacks all kv pairs inside new dictionary
     
     # Appends the new commit summary to the commit log file
-    with COMMIT_LOG_PATH.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
+    record = {**test_dict, **output_as_dict}   # unpacks all kv pairs inside new dictionary
+    if write_jsonl("CommitSummaries", record):
+        print(f"Summarized {commit_sha[:8]} -> {COMMIT_LOG_PATH.name}")
 
-    print(f"Summarized {commit_sha[:8]} -> {COMMIT_LOG_PATH.name}")
     return 0
 
 
