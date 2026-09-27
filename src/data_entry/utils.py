@@ -145,7 +145,7 @@ def check_for_duplicate(data: Data, record: dict[str,Any])->bool:
         data (Data): which log file to search
         record (dict[str,str]): the record to check for duplicates
     Returns:
-        bool: True if the record is a duplicate, False if it is not a duplicate.
+        bool: True if the record is a duplicate, False if it is not a duplicate or file doesnt exist
     """
 
     if data == "CommitSummaries":
@@ -165,9 +165,9 @@ def check_for_duplicate(data: Data, record: dict[str,Any])->bool:
                         print(f"Duplicate record found.")
                         return True
                 
-                return False
+        
+        return False
             
-        raise FileNotFoundError(f"Commit log {COMMIT_LOG} does not exist.") # Raise an error if the commit log file is missing or cannot be opened
     else:
         print(f"Duplicate check not implemented for data type: {data}")
         return False

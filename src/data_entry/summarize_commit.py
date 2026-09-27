@@ -41,21 +41,43 @@ def get_paths():
         
     
     """
+    
+def get_all_commit_hashes() -> list[str]:
+    """Runs git command that gets all comit hashes from current head and parses into list
 
+    Returns:
+        list[str]: list of all commit hashes from the current head
+    """
+    
+    result = subprocess.run(
+        ["git", "log", "--pretty=format:%H"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commit_hashes = result.stdout.strip().split("\n")
+    print(f"Found {len(commit_hashes)} commit hashes.")
+    return commit_hashes
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: summarize_commit.py <commit_sha>", file=sys.stderr)
-        return 2
+def summarize_commit(commit_sha: str) -> bool:
+    """Summarize commit passing diffs as context and summarization 
+       using LLM into structured format, saves to commit log file
 
+    Args:
+        commit_sha (str): commit hash
+
+    Returns:
+        bool: True if the commit was successfully summarized and saved, False if it was already in the log or failed to summarize
+    """
+    
     # Gets new changes in commit
-    commit_sha = sys.argv[1]
     diff = get_commit_diff(commit_sha)
 
     # Exits if commit is already in the log
     test_dict = {"project_id": REPO_ROOT.name, "commit": commit_sha}
     if check_for_duplicate("CommitSummaries", test_dict):
-        return 1
+        return False
     
     # Summarizes diffs
     agent = SummarizationLLM(MODEL_NAME)
@@ -66,7 +88,41 @@ def main() -> int:
     record = {**test_dict, **output_as_dict}   # unpacks all kv pairs inside new dictionary
     if write_jsonl("CommitSummaries", record):
         print(f"Summarized {commit_sha[:8]} -> {COMMIT_LOG_PATH.name}")
+    else:
+        print(f"Failed to summarize {commit_sha[:8]}")
+        return False
+    
+    return True
+    
+def summarize_all_commits() -> None:
+    """Summarizes all commits in the repository by iterating through all commit hashes and calling summarize_commit for each."""
+    commit_hashes = get_all_commit_hashes()
+    for commit_sha in commit_hashes:
+        summarize_commit(commit_sha)
+    print("Finished summarizing all commits for this project")
 
+def main() -> int:
+
+    while True:
+        print("\n Welcome to Commit Summarization Menu :)")
+        print("1. Summarize a single commit")
+        print("2. Summarize all commits")
+        print("3. Exit\n")
+        choice = input("Enter your choice: ")
+        
+        match choice:
+            case "1":
+                commit_sha = input("Enter the commit hash: ")
+                print()
+                summarize_commit(commit_sha)
+            case "2":
+                print()
+                summarize_all_commits()
+            case "3":
+                break
+            case _:
+                print("Invalid choice, please try again.")
+                print()
     return 0
 
 
