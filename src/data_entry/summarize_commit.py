@@ -15,7 +15,7 @@ from utils import write_jsonl, check_for_duplicate
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 COMMIT_LOG_PATH = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
-MODEL_NAME = "gemma4"
+MODEL_NAME = "docker.io/ai/gemma4:latest"
 
 
 def get_commit_diff(commit_sha: str) -> str:

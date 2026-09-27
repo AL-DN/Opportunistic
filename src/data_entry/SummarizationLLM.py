@@ -48,6 +48,7 @@ class SummarizationLLM:
     # Constructor Definition
     def __init__(self, name: str):
         self.name = name
+        self.base = f"http://localhost:12434/engines/llama.cpp/v1/"
         self.api = f"http://localhost:12434/engines/llama.cpp/v1/chat/completions"
         self.commit_system_prompt = """
             You are a helpful assistant tasked to extract important values from this code including,
@@ -58,7 +59,25 @@ class SummarizationLLM:
             You are a helpful assistant tasked to summarize the technology built in serveral stages. Please summarize
             using a combination of general technical topics that can be adjacent to other technologies in different domains.
         """
+        self.check_model()
 
+    def check_model(self):
+        try:
+            r = requests.get(f"{self.base}/models/", timeout=5)
+            r.raise_for_status()
+        
+        except requests.ConnectionError as e:
+            raise RuntimeError("Docker Model Runner not reachable on :12434. Is Docker running with TCP enabled?")
+        
+        available = {m["id"] for m in r.json().get("data", [])}
+        if self.name not in available:
+            error_msg = f"""
+                    Model '{self.name}' not pulled. \n
+                    Available models: {available} \n
+                    Pull new model using: docker model pull MODEL_NAME
+                    """
+            raise RuntimeError(error_msg)
+        
 
     def summarize_commit(self, prompt: str)-> CommitSummarizationOutputFormat:
         """_summary_
