@@ -33,17 +33,19 @@ def get_commit_summaries(project_id: str) -> list[dict[str, Any]]:
     project_summaries = [s for s in summaries if s.get("project_id") == project_id]
     
     return project_summaries
-                        
-    
-def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: summarize_project.py <project_id>", file=sys.stderr)
-        return 2
-    
-    project_id = sys.argv[1]
-    commit_summaries = get_commit_summaries(project_id)
 
+def summarize_project(project_id: str) -> bool:
+    """Summarizes a project based on its commit summaries.
+
+    Args:
+        project_id (str): The ID of the project to summarize.
+
+    Returns:
+        bool: True if the project was successfully summarized and saved, False otherwise.
+    """
+    commit_summaries = get_commit_summaries(project_id)
     
+        
     if not commit_summaries:
         print(f"No commit summaries found for {project_id}", file=sys.stderr)
         return 1
@@ -54,8 +56,11 @@ def main() -> int:
     output = agent.summarize_project(json.dumps(commit_summaries, indent=2))
     output_as_dict = output.model_dump()
     output_as_dict["project_id"] = project_id
-    write_jsonl(data="ProjectSummaries", record=output_as_dict)
-    return 0
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    if write_jsonl(data="ProjectSummaries", record=output_as_dict):
+        print(f"Summarized project {project_id} -> {PROJECT_LOG.name}")
+        return True
+    else:
+        print(f"Failed to summarize project {project_id}")
+        return False
+                        
+    

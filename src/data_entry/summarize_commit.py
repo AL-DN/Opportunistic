@@ -101,30 +101,4 @@ def summarize_all_commits() -> None:
         summarize_commit(commit_sha)
     print("Finished summarizing all commits for this project")
 
-def main() -> int:
 
-    while True:
-        print("\n Welcome to Commit Summarization Menu :)")
-        print("1. Summarize a single commit")
-        print("2. Summarize all commits")
-        print("3. Exit\n")
-        choice = input("Enter your choice: ")
-        
-        match choice:
-            case "1":
-                commit_sha = input("Enter the commit hash: ")
-                print()
-                summarize_commit(commit_sha)
-            case "2":
-                print()
-                summarize_all_commits()
-            case "3":
-                break
-            case _:
-                print("Invalid choice, please try again.")
-                print()
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
