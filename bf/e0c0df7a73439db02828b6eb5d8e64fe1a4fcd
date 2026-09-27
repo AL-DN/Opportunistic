@@ -1,0 +1,36 @@
+src/data_entry/utils.py
+  h_df99cb596cd5e6 168
+  s_9fe3a9b739a9df::t_c76d4ccef794d1 148,169
+src/data_entry/summarize_commit.py
+  h_df99cb596cd5e6 44-46,48-61,63-65,67-68,70-73,80,91-102,104-125
+  s_e48620e4f23163::t_74c106f096da31 66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "bfe0c0df7a73439db02828b6eb5d8e64fe1a4fcd",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_9fe3a9b739a9df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aab3d500-8d5a-437d-8931-66ac080aa784",
+        "model": "unknown"
+      },
+      "human_author": "AL-DN <aldensahi50@gmail.com>"
+    },
+    "s_e48620e4f23163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "536aad70-03d8-4762-8335-f9aa7d224651",
+        "model": "unknown"
+      },
+      "human_author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
