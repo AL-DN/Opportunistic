@@ -1,0 +1,25 @@
+src/data_entry/utils.py
+  h_df99cb596cd5e6 6-7,13,18,49,92,140,142,150,169-172
+  s_9fe3a9b739a9df::t_195510c1a87263 111,153,173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "17c0e9c47e75ef2de9228f8d7cc072d7d2237ded",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_9fe3a9b739a9df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aab3d500-8d5a-437d-8931-66ac080aa784",
+        "model": "unknown"
+      },
+      "human_author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
