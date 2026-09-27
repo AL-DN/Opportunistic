@@ -3,17 +3,19 @@
 # Program Name: utils.py
 # Decription: Helper functions to manipulate data
 
+
+# libs
 from pathlib import Path
 import json
 from typing import Any, Literal, Optional
 from pydantic import validate_call, BaseModel, ConfigDict
 
-
+# Paths
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 COMMIT_LOG = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
 PROJECT_LOG = REPO_ROOT / "src" / "data_store" / "PROJECT_SUMMARY_LOG.jsonl"
 
-
+# custom data types
 Data = Literal["CommitSummaries", "ProjectSummaries"]
 
 class CommitRecord(BaseModel):
@@ -44,7 +46,7 @@ def read_log(data: Data)->list[dict[str,Any]]:
         with open(PROJECT_LOG, encoding="utf-8") as f:
             return [json.loads(line) for line in f if line.strip()]
         
-
+@validate_call(validate_return=True, config={"strict": True})
 def initialize_project_log(project_id: str) -> dict[str, str]:
     """On new project summary, attach to work experience if possible for ease of resume building
 
@@ -87,13 +89,10 @@ def write_jsonl(data: Data, record: dict[str,Any])->bool:
         record (dict[str,str]): new input record to be written to the log file
 
     Returns:
-        bool: True if the record was written successfully, False if it was a duplicate.
+        bool: True if the record was written successfully, False if it was a duplicate
     """
     
-    
-    # Write to COMMIT LOG
     if data == "CommitSummaries":
-        
         CommitRecord.model_validate(record)                             # Validate the record against the CommitRecord model 
         key = (record["project_id"], record["commit"])                  # extracts project_id and commit as key from attempt record
         
@@ -109,7 +108,7 @@ def write_jsonl(data: Data, record: dict[str,Any])->bool:
                         print(f"Duplicate record found.")
                         return False
         
-        with COMMIT_LOG.open("a", encoding="utf-8") as f:           # Appends ( we ensured uniqueness by checking for duplicates above) to commit log
+        with COMMIT_LOG.open("a", encoding="utf-8") as f:               # Appends ( we ensured uniqueness by checking for duplicates above) to commit log
             f.write(json.dumps(record) + "\n")
         print(f"Record written successfully")
         return True
@@ -138,9 +137,9 @@ def write_jsonl(data: Data, record: dict[str,Any])->bool:
             
     return False
         
-
+@validate_call(validate_return=True, config={"strict": True})
 def check_for_duplicate(data: Data, record: dict[str,Any])->bool:
-    """Checks for duplicates
+    """Checks for duplicates (ONLY FOR COMMIT SUMMARIES)
 
     Args:
         data (Data): which log file to search
@@ -148,10 +147,10 @@ def check_for_duplicate(data: Data, record: dict[str,Any])->bool:
     Returns:
         bool: True if the record is a duplicate, False if it is not a duplicate.
     """
-    # Write to COMMIT LOG
+
     if data == "CommitSummaries":
         
-        CommitRecord.model_validate(record)  # Validate the record against the CommitRecord model 
+        CommitRecord.model_validate(record)                                 # Validate the record against the CommitRecord model 
         key = (record["project_id"], record["commit"])
         
         if COMMIT_LOG.exists():
@@ -167,7 +166,10 @@ def check_for_duplicate(data: Data, record: dict[str,Any])->bool:
                         return True
                 
                 return False
-   
-    return False
+            
+        raise FileNotFoundError(f"Commit log {COMMIT_LOG} does not exist.") # Raise an error if the commit log file is missing or cannot be opened
+    else:
+        print(f"Duplicate check not implemented for data type: {data}")
+        return False
         
         
