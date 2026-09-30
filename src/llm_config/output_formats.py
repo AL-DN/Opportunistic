@@ -19,7 +19,7 @@ class CommitSummarizationOutputFormat(BaseModel):
     bigo_time_complexity: str = Field(description="Big O time complexity of the core algorithm")
     bigo_space_complexity: str = Field(description="Big O space complexity of the core algorithm")
     result: str = Field(description="Explanation of how this improved the existing solution, or the outcome if newly written")
-
+    use_cases: list[str] = Field(description="List of possible use cases this code will prove to be useful.")
 # Project Summarization Output
 class ProjectProfileOutputFormat(BaseModel):
     industry: str = Field(description="Industry that technology will effect")
