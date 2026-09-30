@@ -1,0 +1,14 @@
+src/llm_config/output_formats.py
+  h_df99cb596cd5e6 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f4de7d0d2f5c144ad003dccd1231bab5be6d79f5",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
