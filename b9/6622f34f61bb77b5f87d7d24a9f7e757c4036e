@@ -1,0 +1,18 @@
+src/llm_config/prompt.py
+  h_df99cb596cd5e6 1-17
+src/llm_config/LocalLLM.py
+  h_df99cb596cd5e6 1-79
+src/llm_config/output_formats.py
+  h_df99cb596cd5e6 1-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b96622f34f61bb77b5f87d7d24a9f7e757c4036e",
+  "prompts": {},
+  "humans": {
+    "h_df99cb596cd5e6": {
+      "author": "AL-DN <aldensahi50@gmail.com>"
+    }
+  }
+}
