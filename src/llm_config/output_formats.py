@@ -20,6 +20,9 @@ class CommitSummarizationOutputFormat(BaseModel):
     bigo_space_complexity: str = Field(description="Big O space complexity of the core algorithm")
     result: str = Field(description="Explanation of how this improved the existing solution, or the outcome if newly written")
     use_cases: list[str] = Field(description="List of possible use cases this code will prove to be useful.")
+
+
+
 # Project Summarization Output
 class ProjectProfileOutputFormat(BaseModel):
     industry: str = Field(description="Industry that technology will effect")
@@ -57,7 +60,15 @@ class TechDescription(BaseModel):
 class CompanyDescription(BaseModel):
     contains_useful_info: bool = Field(description="If there is important company information then True else False")
     description: str = Field(description="2-3 sentences on what the company does.")
+    technologies: list[TechDescription] = Field(description="List of Technogoies the company is developing.")
+        
 
-    technologies: list[TechDescription] = Field(description="List of Technogoies the company is developing")
+class PositionProfile(BaseModel):
+    required_qualifications: list[str] = Field(description="Required/minimum requirements required for candiate.")
+    preferred_qualifications: list[str] = Field(description="Preferred/bonus requirements required for candiate.")
     
+class JobProfile(BaseModel):
+    company_info: CompanyDescription
+    postion_requirements: PositionProfile
     
+#print(json.dumps(JobProfile.model_json_schema(), indent=2))

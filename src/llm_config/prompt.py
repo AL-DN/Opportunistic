@@ -13,5 +13,5 @@ project_summarization_system_prompt = """
         
 job_html_parse_system_prompt = """
             You are a helpful assisent tasked to extract relevant natural language information from 
-            raw job posts that may contain random HTML characters. 
+            raw job posts that may contain random HTML characters.
         """

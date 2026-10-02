@@ -7,8 +7,15 @@ from pathlib import Path
 import json
 import sys
 from typing import Any
-from SummarizationLLM import SummarizationLLM
-from utils import write_jsonl
+
+# Project Summarization Config
+from llm_config.LocalLLM import LocalLLM
+from llm_config.prompt import project_summarization_system_prompt
+from llm_config.output_formats import ProjectProfileOutputFormat
+
+
+
+from data_entry.utils import write_jsonl
 
 MODEL_NAME = "docker.io/ai/gemma4:latest"
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -52,10 +59,16 @@ def summarize_project(project_id: str) -> bool:
     print(f"Found {len(commit_summaries)} commit summaries for {project_id}", file=sys.stderr)
     
     
-    agent = SummarizationLLM(MODEL_NAME)
-    output = agent.summarize_project(json.dumps(commit_summaries, indent=2))
+    agent = LocalLLM(MODEL_NAME)
+    
+    output = agent.output_structured_format(
+        system_prompt=project_summarization_system_prompt,
+        user_prompt=json.dumps(commit_summaries, indent=2),
+        output=ProjectProfileOutputFormat)
+    
     output_as_dict = output.model_dump()
     output_as_dict["project_id"] = project_id
+    
     if write_jsonl(data="ProjectSummaries", record=output_as_dict):
         print(f"Summarized project {project_id} -> {PROJECT_LOG.name}")
         return True

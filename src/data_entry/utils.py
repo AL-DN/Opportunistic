@@ -78,37 +78,39 @@ def initialize_project_log(project_id: str) -> dict[str, str]:
     return project_log
 
 @validate_call(validate_return=True, config={"strict": True})
-def write_jsonl(data: Data, record: dict[str,Any])->bool:
-    """Validates Input, checks for duplicates. 
-        Commit Summary completely skips operation on duplicate
+def write_jsonl(data: Data, record: dict[str,Any], rewrite: bool = False)->bool:
+    """Validates Input, checks for duplicates.
+        Commit Summary skips on duplicate unless rewrite is True, then it replaces the record.
         Project Summary rewrites the record on  duplicate.
 
     Args:
-    
+
         data (Data): file to write the record to
         record (dict[str,str]): new input record to be written to the log file
+        rewrite (bool): (Commit Summary only) overwrite an existing record with a matching key instead of skipping
 
     Returns:
-        bool: True if the record was written successfully, False if it was a duplicate
+        bool: True if the record was written successfully, False if it was a duplicate and rewrite is False
     """
-    
+
     if data == "CommitSummaries":
-        CommitRecord.model_validate(record)                             # Validate the record against the CommitRecord model 
+        CommitRecord.model_validate(record)                             # Validate the record against the CommitRecord model
         key = (record["project_id"], record["commit"])                  # extracts project_id and commit as key from attempt record
-        
-        if COMMIT_LOG.exists():
-            with COMMIT_LOG.open("r", encoding="utf-8") as f:
-                
-                for line in f:
-                    if not line.strip():
-                        continue
-                    
-                    r = json.loads(line)                               # Loads commit record line by line (reduces memory usage, avoids loading the entire file into memory)
-                    if (r["project_id"], r["commit"]) == key:          # if there is a matching key then do not save commit message again
-                        print(f"Duplicate record found.")
-                        return False
-        
-        with COMMIT_LOG.open("a", encoding="utf-8") as f:               # Appends ( we ensured uniqueness by checking for duplicates above) to commit log
+        records = read_log("CommitSummaries")
+
+        for idx, r in enumerate(records):
+            if (r["project_id"], r["commit"]) == key:
+                if not rewrite:                                        
+                    print(f"Duplicate record found.")                   # no need in summarize_commit
+                    return False
+
+                records[idx] = record                                   # matching key and rewrite -> overwrite its summary and rewrite the file
+                with COMMIT_LOG.open("w", encoding="utf-8") as f:
+                    f.writelines(json.dumps(r) + "\n" for r in records)
+                print(f"Record overwritten successfully")
+                return True
+
+        with COMMIT_LOG.open("a", encoding="utf-8") as f:               # new commit -> append
             f.write(json.dumps(record) + "\n")
         print(f"Record written successfully")
         return True

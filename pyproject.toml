@@ -11,3 +11,11 @@ dependencies = [
     "requests>=2.34.2",
     "trafilatura>=2.2.0",
 ]
+
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
