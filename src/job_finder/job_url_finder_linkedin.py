@@ -68,41 +68,6 @@ def run(playwright: Playwright) -> None:
     with open("./src/data_store/job_results.json", "w") as f:
         json.dump(results, f, indent=4)
         
-        
-    # FOR EACH JOB
-        # GO TO URL
-        # Click Apply
-        
-    
-    
-    # jobs = []
-    # for el in data.get("included", []):
-    #     if el.get("$type") != "com.linkedin.voyager.dash.jobs.JobPostingCard":
-    #         continue
-    #     urn = el.get("jobPostingUrn", "")
-    #     if not urn:
-    #         continue
-    #     job_id = urn.rsplit(":", 1)[-1]
-    #     jobs.append({
-    #         "id": job_id,
-    #         "title": el.get("jobPostingTitle"),
-    #         "companyName": (el.get("primaryDescription") or {}).get("text"),
-    #         "location": (el.get("secondaryDescription") or {}).get("text"),
-    #         "salary": (el.get("tertiaryDescription") or {}).get("text"),
-    #         "companyUrl": (el.get("logo") or {}).get("actionTarget"),
-    #         "jobUrl": f"https://www.linkedin.com/jobs/view/{job_id}" if job_id else None,
-    #     })
-
-    # with open("./src/data_store/job_results_clean.json", "w") as f:
-    #     json.dump(jobs, f, indent=4)
-
-    # for job in jobs:
-    #     if not job["jobUrl"]:
-    #         continue
-    #     job["jsonLd"] = extract_job_json_ld(page, job["jobUrl"])
-
-    # with open("./src/data_store/job_results_enriched.json", "w") as f:
-    #     json.dump(jobs, f, indent=4)
 
     # ---------------------
     context.close()

@@ -22,14 +22,13 @@ from trafilatura import fetch_url, extract
 # Job HTML Parser config
 from llm_config.LocalLLM import LocalLLM
 from llm_config.prompt import job_html_parse_system_prompt
-from llm_config.output_formats import CompanyDescription
-
-
-
+from llm_config.output_formats import JobProfile
 load_dotenv()
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_STORE = REPO_ROOT / "src" / "data_store"
+PARSED_JOB_LOG = DATA_STORE / "PARSED_JOB_LOG.jsonl"
+
 
 MODEL_NAME = "docker.io/ai/gemma4:latest"
 LINKEDIN_USER = os.environ["LINKEDIN_USER"]
@@ -57,7 +56,7 @@ def select_filter_option(page: Page, filter_button: str, option_text: str, attem
     raise PlaywrightTimeoutError(f"Could not select '{option_text}' in '{filter_button}' after {attempts} attempts")
 
 
-def get_linkedin_job_urls(page: Page) -> list[str]:
+def get_linkedin_job_urls(page: Page) -> list[tuple[str,str]]:
     """ Logs in and utilizes linkedins job search to return links to specific job posting cards.
 
     Args:
@@ -95,6 +94,7 @@ def get_linkedin_job_urls(page: Page) -> list[str]:
     select_filter_option(page, "Salary filter. Clicking this", "$80,000+ Filter by $80,000+")
     
     
+    # Captures inital response from search
     results = []
     def capture_job_results(playwright_response) -> None:
             """Given a Playwright Response object, appends matching job search results to `results`."""
@@ -116,7 +116,9 @@ def get_linkedin_job_urls(page: Page) -> list[str]:
     with open(DATA_STORE / "job_results.json", "w") as f:
         json.dump(results, f, indent=4)
         
-        
+    # ------------------
+    
+    # Gets Data in Seperate network calls
     jobs = []
     for el in data.get("included", []):
         if el.get("$type") != "com.linkedin.voyager.dash.jobs.JobPostingCard":
@@ -140,7 +142,8 @@ def get_linkedin_job_urls(page: Page) -> list[str]:
         
     print(f"Found {len(jobs)} jobs.")
 
-    return [job["jobUrl"] for job in jobs]
+    # id is important for rewrite of html(testing), and parsed data to file.
+    return [(job["id"], job["jobUrl"]) for job in jobs]
 
 
 def unwrap_linkedin_redirect(href: str) -> str:
@@ -159,9 +162,10 @@ def unwrap_linkedin_redirect(href: str) -> str:
     return href
 
 
-def retrieve_job_details(page: Page, urls: list[str]) -> list[dict]:
-    details = []
-    for idx, url in enumerate(urls):
+def retrieve_job_html(page: Page, job_ids_urls: list[tuple[str,str]]) -> list[dict]:
+    
+    job_html = []
+    for idx, (job_id, url) in enumerate(job_ids_urls):
         
         # Navigate to LinkedIn Job Page ("load" can hang on LinkedIn's trackers/ads)
         try:
@@ -189,7 +193,7 @@ def retrieve_job_details(page: Page, urls: list[str]) -> list[dict]:
                 
                 # Handles ServerSide Rendered (No Crawler or Bot Detection)
                 downloaded = fetch_url(apply_url) # Simple Get Request
-                result = extract(downloaded,
+                html = extract(downloaded,
                                 output_format="json",
                                 url=apply_url,
                                 include_tables=True,     # requirements are sometimes in tables
@@ -197,7 +201,7 @@ def retrieve_job_details(page: Page, urls: list[str]) -> list[dict]:
                                 favor_recall=True,       # keep more rather than less
                                 )
                 
-                if not result:
+                if not html:
                     try:
                         page.goto(apply_url, wait_until="domcontentloaded", timeout=30000)
                     except PlaywrightError as e:
@@ -205,36 +209,20 @@ def retrieve_job_details(page: Page, urls: list[str]) -> list[dict]:
                         continue
                     page.wait_for_timeout(2500)   # let the SPA hydrate
                     downloaded = page.content()
-                    result = extract(downloaded,
+                    html = extract(downloaded,
                         output_format="json",
                         include_tables=True,     # requirements are sometimes in tables
                         include_comments=False,
                         favor_recall=True,       # keep more rather than less
                         )
-                    if result is None:
+                    if html is None:
                         print(f"Client Side extraction failed for {apply_url}")
                         continue
-                
-                
-                # Extract Important Information
-                local_llm = LocalLLM(MODEL_NAME)
-                output = local_llm.output_structured_format(
-                    system_prompt=job_html_parse_system_prompt,
-                    user_prompt=result,
-                    output=CompanyDescription
-                    )
-                output_as_dict = output.model_dump()
-                scrape_result = json.loads(result)
-                
-                detail = {
-                    "scrape": scrape_result,
-                    "parser": output_as_dict
-                }
-            
-                
-                
-                details.append(detail)
-                print(f"Parsed {idx+1}/{len(urls)} Job Descriptions")
+                    
+                html = json.loads(html)  # extract() returns a JSON string
+                html["job_id"] = job_id
+                job_html.append(html)
+                print(f"Parsed {idx+1}/{len(job_ids_urls)} Job Descriptions")
             else:
                 print(f"No apply control found @ {url}")
         
@@ -243,8 +231,33 @@ def retrieve_job_details(page: Page, urls: list[str]) -> list[dict]:
             print(f"Failed to navigate to linkedin job card @ URL: {url}")
             
             
-    return details
+    return job_html
+
+def parse_job_html(job_htmls: list[dict[str,str]]):
+    
+    parsed_jobs = []
+    
+    # LLM Setup
+    job_parser = LocalLLM(MODEL_NAME)
+    
+    for entry in job_htmls:
+        html = entry["text"]
+        output = job_parser.output_structured_format(
+                system_prompt=job_html_parse_system_prompt,
+                user_prompt=html,
+                output=JobProfile
+                )
+        output_as_dict = output.model_dump()
         
+        result = {**entry, **output_as_dict}
+        parsed_jobs.append(result)
+        
+    with PARSED_JOB_LOG.open("w", encoding="utf-8") as f:
+        f.writelines(json.dumps(r) + "\n" for r in parsed_jobs)
+    print(f"{len(job_htmls)} job applications parsed.")
+        
+    
+           
 
 def run(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)
@@ -252,23 +265,21 @@ def run(playwright: Playwright) -> None:
     
     page = context.new_page()
     page.set_default_timeout(80000)
-    urls = get_linkedin_job_urls(page)
+    job_ids_urls = get_linkedin_job_urls(page)
     page.close()
     
     page = context.new_page()
     page.set_default_timeout(80000)
-    details = retrieve_job_details(page, urls)
+    html = retrieve_job_html(page, job_ids_urls)
     page.close()
     
-    
-    with open(DATA_STORE / "job_details.json", "w") as f:
-        json.dump(details, f, indent=4)
-        
+    with open(DATA_STORE / "job_html.json", "w") as f:
+        json.dump(html, f, indent=4)
     page.close()
-
-    # ---------------------
     context.close()
     browser.close()
+    
+    parse_job_html(html)
 
 
 with sync_playwright() as playwright:
