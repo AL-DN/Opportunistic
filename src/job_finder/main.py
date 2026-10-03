@@ -28,6 +28,7 @@ load_dotenv()
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_STORE = REPO_ROOT / "src" / "data_store"
 PARSED_JOB_LOG = DATA_STORE / "PARSED_JOB_LOG.jsonl"
+JUNK_MARKERS = ("enable javascript", "sign in", "can't find that page", "cannot be found", "css error")
 
 
 MODEL_NAME = "docker.io/ai/gemma4:latest"
@@ -54,7 +55,6 @@ def select_filter_option(page: Page, filter_button: str, option_text: str, attem
             page.keyboard.press("Escape")   # make sure the dropdown is closed before reopening
             page.wait_for_timeout(1000)
     raise PlaywrightTimeoutError(f"Could not select '{option_text}' in '{filter_button}' after {attempts} attempts")
-
 
 def get_linkedin_job_urls(page: Page) -> list[tuple[str,str]]:
     """ Logs in and utilizes linkedins job search to return links to specific job posting cards.
@@ -145,7 +145,6 @@ def get_linkedin_job_urls(page: Page) -> list[tuple[str,str]]:
     # id is important for rewrite of html(testing), and parsed data to file.
     return [(job["id"], job["jobUrl"]) for job in jobs]
 
-
 def unwrap_linkedin_redirect(href: str) -> str:
     """LinkedIn External Apply Link, housed in <a> tags with a redirect URL need to be parsed and decoded (% encoding) to get the actual destination URL.
 
@@ -161,8 +160,27 @@ def unwrap_linkedin_redirect(href: str) -> str:
         return parse_qs(parsed.query).get("url", [href])[0]
     return href
 
+def is_junk(extracted: str | None) -> bool:
+    """True if trafilatura output is missing or a placeholder (JS-required shell, 404, sign-in wall, etc.)."""
+    if not extracted:
+        return True
+    text = json.loads(extracted).get("text", "")
+    return len(text) < 500 or any(m in text.lower() for m in JUNK_MARKERS)
 
 def retrieve_job_html(page: Page, job_ids_urls: list[tuple[str,str]]) -> list[dict]:
+    
+    ## Success Counters
+    total_job_posts = len(job_ids_urls)
+    linkedin_job_card_nav_failed = 0
+    easy_apply_skips = 0
+    trafilatura_html_load_failed = 0
+    trafilatura_extract_failed = 0
+    playwright_nav_failed = 0
+    playwright_html_load_failed = 0
+    playwright_extract_failed = 0
+    no_apply_button = 0
+    
+    # -----------------
     
     job_html = []
     for idx, (job_id, url) in enumerate(job_ids_urls):
@@ -171,10 +189,13 @@ def retrieve_job_html(page: Page, job_ids_urls: list[tuple[str,str]]) -> list[di
         try:
             response = page.goto(url, wait_until="domcontentloaded", timeout=10000)
         except PlaywrightError as e:  # timeouts, net::ERR_ABORTED, etc.
-            print(f"Failed to load linkedin job card @ URL: {url} ({e.message.splitlines()[0]})")
+            #print(f"Failed to load linkedin job card @ URL: {url} ({e.message.splitlines()[0]})")
+            linkedin_job_card_nav_failed += 1
             continue
+        
         time.sleep(2)
 
+        # On successful navigation to linkedin job card.
         if response and response.ok:
             
             # Matches easy apply button and External Apply Link
@@ -182,17 +203,17 @@ def retrieve_job_html(page: Page, job_ids_urls: list[tuple[str,str]]) -> list[di
             external_apply = page.get_by_role("link", name=re.compile(r"^Apply\b", re.I)).first
 
             if easy_apply_btn.is_visible():
-                print(f"Easy Apply (skipping) @ {url}")
-            elif external_apply.is_visible():
+                #print(f"Easy Apply (skipping) @ {url}")
+                easy_apply_skips += 1
                 
+            elif external_apply.is_visible():
                 # Gets External Job Posting URL
                 linkedin_redirect_url = external_apply.evaluate("el => el.href")   # absolute URL
-                #print(f"LinkedIn redirect URL: {linkedin_redirect_url}")
                 apply_url = unwrap_linkedin_redirect(linkedin_redirect_url)
-                print(f"Unwrapped apply URL: {apply_url}")
                 
                 # Handles ServerSide Rendered (No Crawler or Bot Detection)
                 downloaded = fetch_url(apply_url) # Simple Get Request
+                # FETCH URL DEPENDCIES NOTE
                 html = extract(downloaded,
                                 output_format="json",
                                 url=apply_url,
@@ -200,11 +221,17 @@ def retrieve_job_html(page: Page, job_ids_urls: list[tuple[str,str]]) -> list[di
                                 include_comments=False,
                                 favor_recall=True,       # keep more rather than less
                                 )
-                
-                if not html:
+
+                # Fall back to a real browser when the static fetch got an empty/placeholder page
+                if is_junk(html):
+                    if downloaded is None:
+                        trafilatura_html_load_failed += 1
+                    else:
+                        trafilatura_extract_failed += 1
                     try:
                         page.goto(apply_url, wait_until="domcontentloaded", timeout=30000)
                     except PlaywrightError as e:
+                        playwright_nav_failed += 1
                         print(f"Failed to load apply page @ {apply_url} ({e.message.splitlines()[0]})")
                         continue
                     page.wait_for_timeout(2500)   # let the SPA hydrate
@@ -215,7 +242,8 @@ def retrieve_job_html(page: Page, job_ids_urls: list[tuple[str,str]]) -> list[di
                         include_comments=False,
                         favor_recall=True,       # keep more rather than less
                         )
-                    if html is None:
+                    if is_junk(html):
+                        playwright_extract_failed += 1
                         print(f"Client Side extraction failed for {apply_url}")
                         continue
                     
@@ -224,13 +252,47 @@ def retrieve_job_html(page: Page, job_ids_urls: list[tuple[str,str]]) -> list[di
                 job_html.append(html)
                 print(f"Parsed {idx+1}/{len(job_ids_urls)} Job Descriptions")
             else:
-                print(f"No apply control found @ {url}")
+                #print(f"No apply button found @ {url}")
+                no_apply_button += 1
         
-    
         else:
-            print(f"Failed to navigate to linkedin job card @ URL: {url}")
-            
-            
+            #print(f"Failed to navigate to linkedin job card @ URL: {url}")
+            linkedin_job_card_nav_failed += 1
+
+    # ---- Evaluation Report ----
+    attempted = total_job_posts - linkedin_job_card_nav_failed - easy_apply_skips - no_apply_button
+    fallbacks = trafilatura_html_load_failed + trafilatura_extract_failed
+    static_ok = attempted - fallbacks
+    playwright_ok = fallbacks - playwright_nav_failed - playwright_extract_failed
+
+    width = 56
+    def row(label: str, n: int, of: int, indent: int = 3) -> str:
+        pct = f"{n / of:6.1%}" if of else "   n/a"
+        return f"{' ' * indent}{label:<{36 - indent}}{n:>5}  {pct}"
+
+    print("\n" + "=" * width)
+    print(" retrieve_job_html: evaluation")
+    print("=" * width)
+    print(f" {'LinkedIn job cards':<35}{total_job_posts:>5}")
+    print(row("Navigation failed", linkedin_job_card_nav_failed, total_job_posts))
+    print(row("Easy Apply (skipped)", easy_apply_skips, total_job_posts))
+    print(row("No apply button", no_apply_button, total_job_posts))
+    print(row("External apply -> attempted", attempted, total_job_posts))
+    print("-" * width)
+    print(f" {'Static fetch (trafilatura)':<35}{attempted:>5}")
+    print(row("Download failed", trafilatura_html_load_failed, attempted))
+    print(row("Empty / junk extract", trafilatura_extract_failed, attempted))
+    print(row("Succeeded", static_ok, attempted))
+    print("-" * width)
+    print(f" {'Browser fallback (playwright)':<35}{fallbacks:>5}")
+    print(row("Navigation failed", playwright_nav_failed, fallbacks))
+    print(row("Empty / junk extract", playwright_extract_failed, fallbacks))
+    print(row("Recovered", playwright_ok, fallbacks))
+    print("=" * width)
+    print(row("Job descriptions retrieved", len(job_html), total_job_posts, indent=1))
+    print(row("  ...of external apply attempts", len(job_html), attempted, indent=1))
+    print("=" * width + "\n")
+
     return job_html
 
 def parse_job_html(job_htmls: list[dict[str,str]]):
@@ -242,6 +304,9 @@ def parse_job_html(job_htmls: list[dict[str,str]]):
     
     for entry in job_htmls:
         html = entry["text"]
+        
+        # GOAL: INJECT BASIC JOB INFO TO ENSURE ITS RELECANT 
+        
         output = job_parser.output_structured_format(
                 system_prompt=job_html_parse_system_prompt,
                 user_prompt=html,

@@ -62,8 +62,8 @@ class CompanyDescription(BaseModel):
     description: str = Field(description="2-3 sentences on what the company does.")
     technologies: list[TechDescription] = Field(description="List of Technogoies the company is developing.")
         
-
 class PositionProfile(BaseModel):
+    contains_useful_info: bool = Field(description="If there is important information relevant to the position then True else False")
     required_qualifications: list[str] = Field(description="Required/minimum requirements required for candiate.")
     preferred_qualifications: list[str] = Field(description="Preferred/bonus requirements required for candiate.")
     
