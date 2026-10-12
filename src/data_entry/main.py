@@ -4,6 +4,9 @@
 # Project Description: Main entry point for the data entry module
 
 
+from pathlib import Path
+
+import data_entry.summarize_commit as commit_module
 from data_entry.summarize_commit import summarize_commit, summarize_all_commits
 from data_entry.summarize_project import summarize_project
 
@@ -23,9 +26,12 @@ def main() -> int:
     while True:
         print("\n Welcome to Summarization Menu :)")
         
-        # ENter repo root 
-        
-        
+        # Enter repo root (blank keeps current one)
+        repo_path = input(f"Repo to summarize [{commit_module.REPO_ROOT}]: ").strip()
+        if repo_path:
+            commit_module.REPO_ROOT = Path(repo_path).resolve()
+        print()
+
         print("1. Summarize a single commit")
         print("2. Summarize all commits")
         print("3. Summarize a project")

@@ -5,22 +5,32 @@
     # sha, diffs it against its parent, asks SummarizationLLM to extract structured
     # fields, and appends the result as one line to SUMMARY_LOG.jsonl.
 
+import os
 import json
 import subprocess
 import sys
 from pathlib import Path
+import requests
+from dotenv import load_dotenv
+load_dotenv()
 
 # LLM Config for Commit Summarization
 from llm_config.LocalLLM import LocalLLM
 from llm_config.prompt import commit_summarization_system_prompt
 from llm_config.output_formats import CommitSummarizationOutputFormat
-
-
 from data_entry.utils import write_jsonl, check_for_duplicate
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-COMMIT_LOG_PATH = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
+REPO_ROOT = Path(os.environ.get("REPO_ROOT"))                                            # repo being summarized; main.py can overwrite this
+COMMIT_LOG_PATH = Path(__file__).resolve().parent.parent / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"   # always this repo's data store
 MODEL_NAME = "docker.io/ai/gemma4:latest"
+
+# Diff size limits (model context is 131072 tokens, code/json is ~3 chars per token)
+MAX_DIFF_CHARS = 200_000                                                    # whole prompt budget for the diff (~65k tokens)
+MAX_FILE_DIFF_CHARS = 20_000                                                # any single file bigger than this is cut
+NOISE_SUFFIXES = (                                                          # generated / data files that say nothing about the code
+    ".pyc", ".json", ".jsonl", ".csv", ".tsv", ".parquet", ".pkl", ".pt", ".npy",
+    ".ipynb", ".lock", ".min.js", ".map", ".svg", ".png", ".jpg", ".pdf", ".env",
+)
 
 def get_git_config(key: str) -> str:
     """Runs git config command with error handling.
@@ -38,6 +48,8 @@ def get_git_config(key: str) -> str:
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
         )
     except subprocess.CalledProcessError as e:
@@ -52,7 +64,7 @@ def get_git_config(key: str) -> str:
 
 def get_commit_diff(commit_sha: str) -> str:
     """Generate """
-    # NOTE EDGE CASE UNCOVERED: git show prits combine diff on clean merge commits it shows almost nothing, add --first-parent to diff the merge againts the branch it was mered into"""
+    # NOTE EDGE CASE UNCOVERED: git show prints combine diff on clean merge commits it shows almost nothing, add --first-parent to diff the merge againts the branch it was mered into"""
     
     try:
         result = subprocess.run(
@@ -64,6 +76,8 @@ def get_commit_diff(commit_sha: str) -> str:
             cwd=REPO_ROOT,                                          # runs command in REPO_ROOT
             capture_output=True,                                    # saves stdout in result.stdout and stderr in result.stderr
             text=True,                                              # decodes sequential byte output as text
+            encoding="utf-8",                                       # git outputs utf-8; windows default (cp1252) crashes on non-ascii diffs
+            errors="replace",                                       # binary/invalid bytes become � instead of raising
             check=True,                                             # raises subprocess.CalledProcessError if git exits nonzero
         )
         
@@ -79,6 +93,30 @@ def get_commit_diff(commit_sha: str) -> str:
         return ""      
                   
     return value
+
+def fit_diff_to_context(diff: str) -> str:
+    """Shrinks a git show diff so it fits in the model context.
+
+    Keeps the header + --stat block, drops per-file diffs for noise files
+    (data, binaries, lockfiles, notebooks), truncates oversized file diffs,
+    and finally cuts the whole thing to MAX_DIFF_CHARS.
+    """
+    header, *file_diffs = diff.split("\ndiff --git ")                      # header = commit info + --stat summary
+    kept = [header]
+
+    for file_diff in file_diffs:
+        path = file_diff.split("\n", 1)[0].split(" b/")[-1]                 # first line is "a/path b/path"
+        if path.endswith(NOISE_SUFFIXES) or "__pycache__/" in path:
+            kept.append(f"diff --git {file_diff.split(chr(10), 1)[0]}\n[diff omitted: generated/data file]")
+        elif len(file_diff) > MAX_FILE_DIFF_CHARS:
+            kept.append(f"diff --git {file_diff[:MAX_FILE_DIFF_CHARS]}\n[diff truncated: {len(file_diff):,} chars total]")
+        else:
+            kept.append(f"diff --git {file_diff}")
+
+    fitted = "\n".join(kept)
+    if len(fitted) > MAX_DIFF_CHARS:
+        fitted = fitted[:MAX_DIFF_CHARS] + f"\n[remaining diff truncated: {len(fitted):,} chars total]"
+    return fitted
 
 def get_paths():
     """
@@ -106,6 +144,8 @@ def get_all_commit_hashes() -> list[str]:
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
         )
     except subprocess.CalledProcessError as e:
@@ -151,11 +191,16 @@ def summarize_commit(rewrite: bool, commit_sha: str) -> bool:
     
     # Summarizes diffs
     local_llm = LocalLLM(MODEL_NAME)
-    output = local_llm.output_structured_format(
-        system_prompt=commit_summarization_system_prompt,
-        user_prompt=diff,
-        output=CommitSummarizationOutputFormat
-        )
+    try:
+        output = local_llm.output_structured_format(
+            system_prompt=commit_summarization_system_prompt,
+            user_prompt=fit_diff_to_context(diff),
+            output=CommitSummarizationOutputFormat
+            )
+    except requests.HTTPError as e:                                         # one bad commit shouldn't kill summarize_all_commits
+        detail = e.response.text[:300] if e.response is not None else str(e)
+        print(f"Failed to summarize {commit_sha[:8]}: {detail}")
+        return False
     output_as_dict = output.model_dump()
     
     # Appends the new commit summary to the commit log file

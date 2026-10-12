@@ -13,12 +13,10 @@ from llm_config.LocalLLM import LocalLLM
 from llm_config.prompt import project_summarization_system_prompt
 from llm_config.output_formats import ProjectProfileOutputFormat
 
-
-
 from data_entry.utils import write_jsonl
 
 MODEL_NAME = "docker.io/ai/gemma4:latest"
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent           # this repo; data_store lives here
 COMMIT_LOG = REPO_ROOT / "src" / "data_store" / "COMMIT_SUMMARY_LOG.jsonl"
 PROJECT_LOG = REPO_ROOT / "src" / "data_store" / "PROJECT_SUMMARY_LOG.jsonl"
 
