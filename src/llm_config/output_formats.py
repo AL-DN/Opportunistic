@@ -14,7 +14,8 @@ def display_output_format(output_format: BaseModel):
 '''CODE SUMMARIZATION OUTPUTS'''
 # Commit Summarization Output
 class CommitSummarizationOutputFormat(BaseModel):
-    libraries: list[str] = Field(description="Libraries imported/used in the code")
+    languages: list[str] = Field(description="The coding language used to implement code changes.")
+    libraries: list[str] = Field(description="The libraries imported/used in the code")
     data_structures: list[str] = Field(description="Data structures utilized (e.g. list, hash map, tree)")
     bigo_time_complexity: str = Field(description="Big O time complexity of the core algorithm")
     bigo_space_complexity: str = Field(description="Big O space complexity of the core algorithm")
@@ -32,8 +33,8 @@ class ProjectProfileOutputFormat(BaseModel):
     technical_archetypes: list[str] = Field(
         min_length=1,
         description=(
-            "Industry-recognizable categories this project is an instance of, phrased in the "
-            "vocabulary an employer would search for or recognize. Abstract away from this "
+            "Industry-recognizable categories this project is an instance of, phrased the "
+            "way a job posting would list it. Abstract away from the "
             "project's specifics: prefer 'one-shot LLM summarization pipeline' over 'git "
             "commit summarizer', 'semantic clustering' over 'grouping my commits'. 3-8 entries."
         ),
@@ -70,5 +71,39 @@ class PositionProfile(BaseModel):
 class JobProfile(BaseModel):
     company_info: CompanyDescription
     postion_requirements: PositionProfile
+    
+
+''' Resume Format '''
+
+class PersonalDetails(BaseModel):
+    name: str
+    number: str
+    location: str
+    linkedin: str 
+    github: str
+    website: str
+    
+class BulletFormat(BaseModel):
+    bullet = Field()
+
+class WorkEntry(BaseModel):
+    title: str
+    company: str 
+    start_date: str
+    end_date: str
+    bullet_points: list[BulletFormat] = Field("First BulletFormat Objects should be most relevant")
+    
+
+class ResumeFormat(BaseModel):
+    personal_details: PersonalDetails       # (filled in from deterministically)
+    personal_summary: str
+    work_experience: list[WorkEntry]
+    relevant_projects: list[ProjectEntry]
+    relevant_skills: list[str]
+
+
+
+
+
     
 #print(json.dumps(JobProfile.model_json_schema(), indent=2))

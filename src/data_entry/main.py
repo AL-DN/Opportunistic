@@ -24,7 +24,7 @@ def ask_yes_no(prompt: str) -> bool:
 def main() -> int:
 
     while True:
-        print("\n Welcome to Summarization Menu :)")
+        print("\nWelcome to Summarization Menu :)")
         
         # Enter repo root (blank keeps current one)
         repo_path = input(f"Repo to summarize [{commit_module.REPO_ROOT}]: ").strip()

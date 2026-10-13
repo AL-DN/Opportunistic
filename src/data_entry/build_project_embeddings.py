@@ -1,1 +1,0 @@
-# This script builds embeddings for project summaries, which can be used to match projects to job requirements.

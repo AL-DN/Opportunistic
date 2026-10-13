@@ -168,22 +168,27 @@ def summarize_commit(rewrite: bool, commit_sha: str) -> bool:
         bool: True if the commit was successfully summarized and saved, False if it was already in the log or failed to summarize
     """
     
+    print(f"\n Processing  {commit_sha[:8]}")
+    
     # Gets new changes in commit
     diff = get_commit_diff(commit_sha)
     if not diff:                            # errors in get_commit_diff return "" to avoid summarizing nothing
+        print(f"No diff found for {commit_sha[:8]}")
         return False
 
     """
     Handling the rewrite param dn duplicates in COMMIT_SUMMARY_LOG.jsonl
-    | rewrite | duplicate |       function       |
-    |---------|-----------|----------------------|
-    |    T    |     T     |   summarize,replace  | find and overwrite mid write loop, exit early
-    |    T    |     F     |   summarize,append   | exhaustively searched no duplicate found in write loop 
-    |    F    |     T     |         skip         | 
-    |    F    |     F     |   summarize,append   | exhaustively searched no duplicate found in write loop 
+      | rewrite | duplicate |       function       |
+      |---------|-----------|----------------------|
+    1 |    T    |     T     |   summarize,replace  | find and overwrite mid write loop, exit early
+    2 |    T    |     F     |   summarize,append   | exhaustively searched no duplicate found in write loop 
+    3 |    F    |     T     |         skip         | 
+    4 |    F    |     F     |   summarize,append   | exhaustively searched no duplicate found in write loop 
     """
     
     test_dict = {"project_id": REPO_ROOT.name, "commit": commit_sha}
+    
+    # Case 3
     skip: bool = not rewrite and check_for_duplicate("CommitSummaries", test_dict)
     if skip:
         print(f"Skipping {commit_sha[:8]}")
@@ -205,6 +210,7 @@ def summarize_commit(rewrite: bool, commit_sha: str) -> bool:
     
     # Appends the new commit summary to the commit log file
     record = {**test_dict, **output_as_dict}   # unpacks all kv pairs inside new dictionary
+    
     if write_jsonl("CommitSummaries", record, rewrite):
         print(f"Summarized {commit_sha[:8]} -> {COMMIT_LOG_PATH.name}")
     else:

@@ -75,71 +75,77 @@ def get_linkedin_job_urls(page: Page) -> list[tuple[str,str]]:
     page.get_by_role("button", name="Sign in").click()
     page.goto("https://www.linkedin.com/jobs/")
     
+    # # Inital search params
+    # page.get_by_role("textbox", name="Title, skill or Company").click()
+    # page.get_by_role("textbox", name="Title, skill or Company").press_sequentially("Software Engineer")
+    # page.get_by_role("textbox", name="City, state, or zip code").click()
+    # page.get_by_role("textbox", name="City, state, or zip code").press_sequentially("New York")
+    # page.get_by_role("link", name="New York, New York, United States", exact=True).click()
+    # time.sleep(10)
+    
+    # select_filter_option(page, "Date posted filter. Clicking", "Past 24 hours Filter by Past")
+    # page.get_by_role("button", name="Apply current filter to show").click()
+    # time.sleep(1)
+
+    # select_filter_option(page, "Experience level filter.", "Entry level Filter by Entry")
+    # page.get_by_role("button", name="Apply current filter to show").click()
+    # time.sleep(1)
+
+    # select_filter_option(page, "Salary filter. Clicking this", "$80,000+ Filter by $80,000+")
+        
     # Inital search params
-    page.get_by_role("textbox", name="Title, skill or Company").click()
-    page.get_by_role("textbox", name="Title, skill or Company").press_sequentially("Software Engineer")
-    page.get_by_role("textbox", name="City, state, or zip code").click()
-    page.get_by_role("textbox", name="City, state, or zip code").press_sequentially("New York")
-    page.get_by_role("link", name="New York, New York, United States", exact=True).click()
+    # page.get_by_role("textbox", name="Title, skill or Company").click()
+    # page.get_by_role("textbox", name="Title, skill or Company").press_sequentially("Software Engineer")
+    
+    page.get_by_test_id("typeahead-input").click()
+    page.get_by_test_id("typeahead-input").fill("Software Engineer")
+    page.get_by_test_id("typeahead-input").press("Enter")
+    
+    
+    # page.get_by_role("textbox", name="City, state, or zip code").click()
+    # page.get_by_role("textbox", name="City, state, or zip code").press_sequentially("New York")
+    # page.get_by_role("link", name="New York, New York, United States", exact=True).click()
+    page.get_by_role("button", name="Location New York, NY (50 mi)").click()
+    page.get_by_role("link", name="New York, New York, United").click()
     time.sleep(10)
     
-    select_filter_option(page, "Date posted filter. Clicking", "Past 24 hours Filter by Past")
-    page.get_by_role("button", name="Apply current filter to show").click()
+    # page.get_by_role("button", name="Filter by Date posted").click()
+    # page.locator("label").filter(has_text="Past 24 hours Filter by Past").click()
+    # page.get_by_role("button", name="Apply current filter to show").click()
+    page.get_by_role("button", name="Filter by Date posted").click()
+    page.get_by_role("radio", name="Past 24 hours").click()
+    page.get_by_role("link", name="Show results").click()
     time.sleep(1)
 
-    select_filter_option(page, "Experience level filter.", "Entry level Filter by Entry")
-    page.get_by_role("button", name="Apply current filter to show").click()
+    # page.get_by_role("button", name="Filter by Experience level").click()
+    # page.locator("label").filter(has_text="Entry level Filter by Entry").click()
+    # page.get_by_role("button", name="Apply current filter to show").click()
+    page.get_by_role("button", name="Filter by Experience level").click()
+    page.get_by_role("checkbox", name="Entry-level").click()
     time.sleep(1)
-
-    select_filter_option(page, "Salary filter. Clicking this", "$80,000+ Filter by $80,000+")
+    
+    # page.get_by_role("button", name="Salary filter. Clicking this").click()
+    # page.locator("label").filter(has_text="$80,000+ Filter by $80,000+").click()
+    #page.get_by_role("button", name="Apply current filter to show").click()
     
     
-    # Captures inital response from search
-    results = []
-    def capture_job_results(playwright_response) -> None:
-            """Given a Playwright Response object, appends matching job search results to `results`."""
-            if "voyagerJobsDashJobCards" not in playwright_response.url or "q=jobSearch" not in playwright_response.url:
-                return
-            if "count=0" in playwright_response.url:
-                return
-            results.append(playwright_response.json())
+    # Search results arrive as a server-rendered (RSC) stream, not JSON; job ids appear as "jobId":"<digits>".
+    # Body must be read before any further navigation or it becomes unavailable.
+    with page.expect_response(lambda r: "flagship-web/jobs/search-results" in r.url and r.ok) as response_info:
+        page.get_by_role("link", name="Show results").click()
+    body = response_info.value.body().decode("utf-8", "replace")
 
+    with open(DATA_STORE / "job_results.txt", "w", encoding="utf-8") as f:
+        f.write(body)
 
-    # Playwright registers capture_job_results as a callback function to an event listener
-    page.on("response", capture_job_results)
-
-    page.get_by_role("button", name="Apply current filter to show").click()
-    page.wait_for_timeout(5000)   # let the response land
-
-
-    data = results[0] if results else {}
-    with open(DATA_STORE / "job_results.json", "w") as f:
-        json.dump(results, f, indent=4)
-        
     # ------------------
-    
-    # Gets Data in Seperate network calls
-    jobs = []
-    for el in data.get("included", []):
-        if el.get("$type") != "com.linkedin.voyager.dash.jobs.JobPostingCard":
-            continue
-        urn = el.get("jobPostingUrn", "")
-        if not urn:
-            continue
-        job_id = urn.rsplit(":", 1)[-1]
-        jobs.append({
-            "id": job_id,
-            "title": el.get("jobPostingTitle"),
-            "companyName": (el.get("primaryDescription") or {}).get("text"),
-            "location": (el.get("secondaryDescription") or {}).get("text"),
-            "salary": (el.get("tertiaryDescription") or {}).get("text"),
-            "companyUrl": (el.get("logo") or {}).get("actionTarget"),
-            "jobUrl": f"https://www.linkedin.com/jobs/view/{job_id}" if job_id else None,
-        })
+
+    job_ids = list(dict.fromkeys(re.findall(r'"jobId":"?(\d{8,})', body)))   # dedupe, keep order
+    jobs = [{"id": job_id, "jobUrl": f"https://www.linkedin.com/jobs/view/{job_id}"} for job_id in job_ids]
 
     with open(DATA_STORE / "job_results_clean.json", "w") as f:
         json.dump(jobs, f, indent=4)
-        
+
     print(f"Found {len(jobs)} jobs.")
 
     # id is important for rewrite of html(testing), and parsed data to file.
@@ -305,7 +311,7 @@ def parse_job_html(job_htmls: list[dict[str,str]]):
     for entry in job_htmls:
         html = entry["text"]
         
-        # GOAL: INJECT BASIC JOB INFO TO ENSURE ITS RELECANT 
+        # GOAL: INJECT BASIC JOB INFO TO ENSURE ITS RELEVANT 
         
         output = job_parser.output_structured_format(
                 system_prompt=job_html_parse_system_prompt,
@@ -340,7 +346,7 @@ def run(playwright: Playwright) -> None:
     
     with open(DATA_STORE / "job_html.json", "w") as f:
         json.dump(html, f, indent=4)
-    page.close()
+        
     context.close()
     browser.close()
     
