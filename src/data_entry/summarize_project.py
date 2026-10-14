@@ -59,6 +59,7 @@ def summarize_project(project_id: str) -> bool:
     
     agent = LocalLLM(MODEL_NAME)
     
+
     output = agent.output_structured_format(
         system_prompt=project_summarization_system_prompt,
         user_prompt=json.dumps(commit_summaries, indent=2),
@@ -84,6 +85,11 @@ def summarize_project(project_id: str) -> bool:
     model = SentenceTransformer("IEITYuan/Yuan-embedding-2.0-en", device=resolve_device())
     embd = model.encode(output_as_dict.get("technical_archetypes"), show_progress_bar=True)
     
+    for text in output_as_dict.get("technical_archetypes"):
+        print(text)
+            
+    print(model.similarity(embd, embd))
+    
     import numpy as np
     import os
 
@@ -99,9 +105,9 @@ def summarize_project(project_id: str) -> bool:
         
     save_or_append("embeddings.npz",project_id, embd)
 
-    data = np.load("embeddings.npz")
-    vec = data[f"{project_id}"]
-    print(vec)
+    # data = np.load("embeddings.npz")
+    # vec = data[f"{project_id}"]
+    # print(vec)
             
     exit()
     if write_jsonl(data="ProjectSummaries", record=output_as_dict):

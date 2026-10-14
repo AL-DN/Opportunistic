@@ -10,6 +10,13 @@ from pydantic import BaseModel, Field
 from typing import Dict, Union, Any
 import time as t
 
+class ContextWindowExceededError(Exception):
+    def __init__(self, prompt_tokens: int, context_length: int):
+        self.prompt_tokens = prompt_tokens          
+        self.context_length = context_length
+        super().__init__(f"Prompt is {prompt_tokens} tokens; context window is {context_length}")
+
+
 class LocalLLM:
 
     # Constructor Definition
@@ -25,7 +32,7 @@ class LocalLLM:
         self.count_tokens_api = f"http://127.0.0.1:12434/anthropic/v1/messages/count_tokens"
         
         self.check_model()
-        self.context_length = self.fetch_context_length()
+        self.context_length = self.fetch_context_length()   # Does one call to LLM to extract context window size
         
         print(f"\t- Context window: {self.context_length} tokens.")
 
@@ -89,6 +96,12 @@ class LocalLLM:
         return int(response.json()["input_tokens"])
 
 
+    def exceeds_context_window(self, messages: dict[str, Any]) -> None:
+        """Raises ContextWindowError if the payload's prompt is too large for the model"""
+        token_length: int = self.get_token_length(messages)
+        if token_length > self.context_length:
+            raise ContextWindowExceededError(token_length, self.context_length)
+
     def output_structured_format(self, system_prompt: str, user_prompt: str, output: type[BaseModel])-> BaseModel:
         schema = output.model_json_schema()
         data: dict[str, Any] = {
@@ -113,11 +126,14 @@ class LocalLLM:
                 }
             }
         }
+        
+        # Assess Prompt Size compare to max size ( avoids a LLM call when we can if input is too larger quicker)
+        self.exceeds_context_window(data)
+        
         start_time = t.perf_counter()
         response = requests.post(f"{self.api}", json=data)
         runtime = t.perf_counter() - start_time        
         response.raise_for_status()
-        
         body = response.json()
         
         # Runtime Analysis
@@ -126,12 +142,12 @@ class LocalLLM:
             f"{usage.get('completion_tokens')} output tokens, "
             f"{usage.get('completion_tokens', 0) / runtime:.1f} tok/s)")
 
-                    
         choice = body["choices"][0]
         if choice["finish_reason"] == "length":
             raise RuntimeError(
                 f"Output truncated at token limit (usage: {body.get('usage')})"
             )
+            
         content = choice["message"]["content"]        
         return output.model_validate_json(content)
 
