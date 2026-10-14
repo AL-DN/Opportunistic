@@ -75,31 +75,31 @@ class JobProfile(BaseModel):
 
 ''' Resume Format '''
 
-class PersonalDetails(BaseModel):
-    name: str
-    number: str
-    location: str
-    linkedin: str 
-    github: str
-    website: str
+# class PersonalDetails(BaseModel):
+#     name: str
+#     number: str
+#     location: str
+#     linkedin: str 
+#     github: str
+#     website: str
     
-class BulletFormat(BaseModel):
-    bullet = Field()
+# class BulletFormat(BaseModel):
+#     bullet = Field()
 
-class WorkEntry(BaseModel):
-    title: str
-    company: str 
-    start_date: str
-    end_date: str
-    bullet_points: list[BulletFormat] = Field("First BulletFormat Objects should be most relevant")
+# class WorkEntry(BaseModel):
+#     title: str
+#     company: str 
+#     start_date: str
+#     end_date: str
+#     bullet_points: list[BulletFormat] = Field("First BulletFormat Objects should be most relevant")
     
 
-class ResumeFormat(BaseModel):
-    personal_details: PersonalDetails       # (filled in from deterministically)
-    personal_summary: str
-    work_experience: list[WorkEntry]
-    relevant_projects: list[ProjectEntry]
-    relevant_skills: list[str]
+# class ResumeFormat(BaseModel):
+#     personal_details: PersonalDetails       # (filled in from deterministically)
+#     personal_summary: str
+#     work_experience: list[WorkEntry]
+#     relevant_projects: list[ProjectEntry]
+#     relevant_skills: list[str]
 
 
 

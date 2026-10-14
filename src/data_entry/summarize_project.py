@@ -67,6 +67,43 @@ def summarize_project(project_id: str) -> bool:
     output_as_dict = output.model_dump()
     output_as_dict["project_id"] = project_id
     
+    import torch
+    # Embeds all technical_archetypes
+    
+    def resolve_device(device: str | None = "auto") -> str:
+        """'auto' picks GPU if available, otherwise CPU. Any explicit value wins."""
+        if device in (None, "auto"):
+            if torch.cuda.is_available():
+                return "cuda"
+            if torch.backends.mps.is_available():  # Apple Silicon
+                return "mps"
+            return "cpu"
+        return device
+
+    from sentence_transformers import SentenceTransformer
+    model = SentenceTransformer("IEITYuan/Yuan-embedding-2.0-en", device=resolve_device())
+    embd = model.encode(output_as_dict.get("technical_archetypes"), show_progress_bar=True)
+    
+    import numpy as np
+    import os
+
+    def save_or_append(path, key, new_embs):
+        key = str(key)
+        new_embs = np.atleast_2d(new_embs)
+        data = dict(np.load(path)) if os.path.exists(path) else {}
+        if key in data:
+            data[key] = np.concatenate([data[key], new_embs])   # add rows to existing project
+        else:
+            data[key] = new_embs
+        np.savez(path, **data)
+        
+    save_or_append("embeddings.npz",project_id, embd)
+
+    data = np.load("embeddings.npz")
+    vec = data[f"{project_id}"]
+    print(vec)
+            
+    exit()
     if write_jsonl(data="ProjectSummaries", record=output_as_dict):
         print(f"Summarized project {project_id} -> {PROJECT_LOG.name}")
         return True
